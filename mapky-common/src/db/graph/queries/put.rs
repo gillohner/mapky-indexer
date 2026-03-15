@@ -79,6 +79,19 @@ pub fn create_homeserver(hs: &HomeserverDetails) -> Query {
     .param("indexed_at", hs.indexed_at)
 }
 
+/// Link a user to their homeserver via REGISTERED_ON relationship.
+/// Creates the User node if it doesn't exist.
+pub fn link_user_to_homeserver(user_id: &str, homeserver_id: &str) -> Query {
+    query(
+        "MERGE (u:User {id: $user_id})
+         WITH u
+         MATCH (hs:Homeserver {id: $hs_id})
+         MERGE (u)-[:REGISTERED_ON]->(hs)",
+    )
+    .param("user_id", user_id)
+    .param("hs_id", homeserver_id)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -134,6 +147,12 @@ mod tests {
             indexed_at: 1000,
         };
         let q = create_post(&post);
+        drop(q);
+    }
+
+    #[test]
+    fn test_link_user_to_homeserver_query_builds() {
+        let q = link_user_to_homeserver("user_pk", "hs_pk");
         drop(q);
     }
 }

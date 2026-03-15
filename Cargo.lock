@@ -1835,6 +1835,7 @@ dependencies = [
  "http-body-util",
  "mapky-common",
  "neo4rs",
+ "pubky 0.6.0-rc.6",
  "serde",
  "serde_json",
  "thiserror 2.0.18",

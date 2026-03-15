@@ -212,6 +212,7 @@ Minimal: `id`, `name`, `indexed_at`. Extended as needed.
 ### Relationships
 - `(:User)-[:AUTHORED]->(:Post)` — user wrote a post
 - `(:Post)-[:ABOUT]->(:Place)` — post is about a place
+- `(:User)-[:REGISTERED_ON]->(:Homeserver)` — user is hosted on a homeserver
 
 ### Indexes
 - `POINT INDEX placeLocationIndex FOR (p:Place) ON (p.location)` — **core spatial index** for viewport queries
@@ -231,7 +232,7 @@ RETURN p LIMIT $limit
 
 - `places` — osm_canonical PK, coordinates, aggregation counters
 - `posts` — (author_id, id) composite PK, osm_canonical FK, content with GIN FTS index
-- `watcher_cursors` — cursor persistence per homeserver
+- `watcher_cursors` — cursor persistence per user (events-stream) or per homeserver (legacy fallback)
 
 ## API Endpoints
 
@@ -261,13 +262,24 @@ pub mod post;    // upsert_post, delete_post (with RETURNING for aggregate rollb
 ```
 All use sqlx with parameterized queries. Aggregate updates use running-average SQL.
 
-### 11. Event Polling
-The watcher polls `https://{homeserver}/events/?cursor={cursor}&limit={limit}` and parses response lines:
-- `PUT pubky://user_pk/pub/mapky.app/posts/ID` → fetch blob → parse → dispatch to handler
-- `DEL pubky://user_pk/pub/mapky.app/posts/ID` → dispatch delete handler
-- `cursor: <value>` → persist to watcher_cursors table
+### 11. Event Polling (Dual-Mode)
+The watcher uses two polling modes per homeserver:
 
-Event line parsing in `mapky-watcher/src/events/mod.rs` extracts user_id, resource_type, resource_id from the URI. Non-mapky.app events are silently skipped.
+**events-stream mode** (primary, for homeservers with known users):
+- Polls `GET /events-stream?user=pk1:cursor1&user=pk2:cursor2&path=/pub/mapky.app/&limit=N`
+- SSE response format: `event: PUT\ndata: pubky://...\ndata: cursor: N\ndata: content_hash: ...\n\n`
+- Server-side path filtering — only mapky.app events are returned
+- Per-user cursors stored in `watcher_cursors.source_id`
+
+**Legacy mode** (fallback, for homeservers with no known users):
+- Polls `GET /events/?cursor={cursor}&limit={limit}`
+- Plain text response: `PUT pubky://user/pub/mapky.app/posts/ID`
+- Client-side filtering for mapky.app paths
+- Creates `REGISTERED_ON` links to promote users to events-stream mode
+
+Users are linked to homeservers via `(:User)-[:REGISTERED_ON]->(:Homeserver)`. Once a homeserver has known users, subsequent polls use the efficient events-stream endpoint.
+
+Event line parsing in `mapky-watcher/src/events/mod.rs` handles both plain text and SSE formats.
 
 ## What's NOT Implemented Yet (TODO)
 - LocationTag, Collection, Incident, GeoCapture, Route handlers (only Post exists as reference)

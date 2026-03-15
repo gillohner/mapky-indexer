@@ -9,6 +9,7 @@ license = "MIT"
 mapky-common = { version = "0.1.0", path = "../mapky-common" }
 axum = "0.8"
 chrono = { workspace = true }
+pubky = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

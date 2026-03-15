@@ -64,6 +64,15 @@ pub fn get_all_homeservers() -> Query {
     query("MATCH (hs:Homeserver) WITH collect(hs.id) AS ids RETURN ids")
 }
 
+/// Retrieve all user IDs registered on a specific homeserver.
+pub fn get_users_for_homeserver(homeserver_id: &str) -> Query {
+    query(
+        "MATCH (u:User)-[:REGISTERED_ON]->(hs:Homeserver {id: $hs_id})
+         WITH collect(u.id) AS ids RETURN ids",
+    )
+    .param("hs_id", homeserver_id)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -89,6 +98,12 @@ mod tests {
     #[test]
     fn test_get_post_query_builds() {
         let q = get_post_by_id("user123", "post456");
+        drop(q);
+    }
+
+    #[test]
+    fn test_get_users_for_homeserver_query_builds() {
+        let q = get_users_for_homeserver("test_hs_pk");
         drop(q);
     }
 }

@@ -62,6 +62,20 @@ impl HomeserverDetails {
 
         Ok(ids.unwrap_or_default())
     }
+
+    /// Return all user IDs registered on a specific homeserver.
+    pub async fn get_user_ids(homeserver_id: &str) -> Result<Vec<String>, DynError> {
+        let ids: Option<Vec<String>> =
+            fetch_key_from_graph(queries::get::get_users_for_homeserver(homeserver_id), "ids")
+                .await?;
+
+        Ok(ids.unwrap_or_default())
+    }
+
+    /// Link a user to this homeserver via REGISTERED_ON relationship.
+    pub async fn link_user(user_id: &str, homeserver_id: &str) -> Result<(), DynError> {
+        exec_single_row(queries::put::link_user_to_homeserver(user_id, homeserver_id)).await
+    }
 }
 
 #[cfg(test)]
