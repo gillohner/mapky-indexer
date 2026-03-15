@@ -9,10 +9,13 @@ license = "MIT"
 mapky-common = { version = "0.1.0", path = "../mapky-common" }
 mapky-watcher = { version = "0.1.0", path = "../mapky-watcher" }
 mapky-webapi = { version = "0.1.0", path = "../mapky-webapi" }
+mapky-app-specs = { workspace = true }
 chrono = { workspace = true }
 clap = { workspace = true }
 neo4rs = { workspace = true }
+pubky = { workspace = true }
 serde = { workspace = true }
+serde_json = { workspace = true }
 sqlx = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
@@ -20,3 +23,7 @@ tracing = { workspace = true }
 [[example]]
 name = "seed"
 path = "examples/seed.rs"
+
+[[example]]
+name = "write_testnet"
+path = "examples/write_testnet.rs"

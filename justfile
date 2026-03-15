@@ -37,6 +37,10 @@ watcher:
 seed: up
     cargo run -p mapkyd --example seed
 
+# Write test posts to testnet homeserver (requires pubky-docker)
+write-testnet:
+    cargo run -p mapkyd --example write_testnet
+
 # Wipe both databases and recreate schema
 reset: up
     cargo run -p mapkyd -- reset-db
