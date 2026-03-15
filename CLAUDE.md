@@ -24,6 +24,41 @@ mapkyd → mapky-webapi → mapky-common
 
 All crates depend on `mapky-app-specs` (workspace dependency) for the type definitions.
 
+## Task Runner (justfile)
+
+Requires [just](https://github.com/casey/just). Run `just` to list all recipes.
+
+```sh
+just              # list recipes
+just dev          # docker up + run daemon (local config)
+just dev-testnet  # docker up + run daemon (testnet config)
+just api          # run API only
+just watcher      # run watcher only
+just seed         # docker up + seed test data
+just reset        # docker up + wipe DBs + recreate schema
+just fresh        # reset + seed (clean slate with data)
+just test         # unit tests (no Docker)
+just test-int     # docker up + seed + integration tests
+just check        # clippy + fmt --check
+just fmt          # cargo fmt
+just up / down / logs  # Docker lifecycle
+```
+
+## Config Profiles
+
+Config lives in `config/` with profile subdirectories:
+```
+config/
+  config.example.toml       # template (embedded in daemon.rs as default)
+  local/config.toml          # testnet=false, local Docker DBs (default)
+  testnet/config.toml        # testnet=true, requires pubky-docker
+```
+
+Default profile is `config/local`. Switch with `--config-dir`:
+```sh
+cargo run -p mapkyd -- --config-dir config/testnet
+```
+
 ## Commands
 ```sh
 cargo check --workspace          # Compile check all crates
@@ -32,10 +67,11 @@ cargo clippy --workspace         # Lint
 cargo run -p mapkyd              # Run both API + watcher (default)
 cargo run -p mapkyd -- api       # Run API only
 cargo run -p mapkyd -- watcher   # Run watcher only
+cargo run -p mapkyd -- reset-db  # Wipe DBs and recreate schema
 cargo run -p mapkyd -- --help    # Show CLI help
 ```
 
-Config file: `config/config.toml` (auto-created from defaults if missing).
+Config file: `config/local/config.toml` (auto-created from defaults if missing).
 
 ### Integration Tests (require Docker)
 ```sh
@@ -213,7 +249,8 @@ RETURN p LIMIT $limit
 - Use `osm_canonical` (e.g. "node/123") as the universal place identifier across all stores
 - PostgreSQL aggregation counters (review_count, avg_rating) must stay in sync with graph mutations
 - All Cypher queries MUST use `.param()` — never string interpolation
-- Config defaults live in `config/config.toml` — keep in sync with config struct defaults
+- Config defaults live in `config/config.example.toml` — keep in sync with config struct defaults
+- Config profiles in `config/local/` and `config/testnet/` — `local` is the default
 
 ### 10. PostgreSQL Query Layer
 ```rust

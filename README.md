@@ -23,36 +23,37 @@ Architecture mirrors [pubky-nexus](https://github.com/pubky/pubky-nexus) with Po
 
 ## Quick Start
 
+Requires [just](https://github.com/casey/just) (recommended) or manual `cargo` commands.
+
 ```sh
-# 1. Start local databases
+# 1. Start local databases + run the indexer
+just dev
+
+# Or manually:
 cd docker && cp .env-sample .env && docker compose up -d && cd ..
-
-# 2. Start pubky-docker testnet homeserver (separate terminal)
-# See https://github.com/pubky/pubky-docker
-
-# 3. Run the indexer (testnet mode by default)
 cargo run -p mapkyd
+```
+
+For testnet mode (requires [pubky-docker](https://github.com/pubky/pubky-docker)):
+```sh
+just dev-testnet
 ```
 
 ## Configuration
 
-Default config at `config/config.toml`. Ships with `testnet = true` for local development.
+Config profiles live in `config/`:
 
-```toml
-[watcher]
-testnet = true           # use local pubky homeserver
-testnet_host = "localhost"
+| Profile | Path | testnet | Use case |
+|---|---|---|---|
+| **local** (default) | `config/local/config.toml` | `false` | Local dev, no homeserver needed |
+| **testnet** | `config/testnet/config.toml` | `true` | Dev with pubky-docker homeserver |
 
-[stack.db.neo4j]
-uri = "bolt://localhost:7687"
-user = "neo4j"
-password = "12345678"
-
-[stack.db.postgres]
-url = "postgres://mapky:mapky@localhost:5432/mapky"
+The default profile is `local`. Switch profiles with `--config-dir`:
+```sh
+cargo run -p mapkyd -- --config-dir config/testnet
 ```
 
-For production, create a separate config directory with `testnet = false` and production credentials, then run:
+For production, create a new profile directory with production credentials:
 ```sh
 cargo run -p mapkyd -- --config-dir /path/to/prod-config/
 ```
@@ -77,32 +78,37 @@ docker compose down -v     # stop and delete data
 ## Usage
 
 ```sh
-# Run both API and watcher (default)
-cargo run -p mapkyd
+# Using just (recommended):
+just dev          # docker up + run daemon (local config)
+just dev-testnet  # docker up + run daemon (testnet config)
+just api          # run API only
+just watcher      # run watcher only
+just reset        # wipe DBs and recreate schema
+just fresh        # reset + seed (clean slate with data)
 
-# Run API only
-cargo run -p mapkyd -- api
-
-# Run watcher only
-cargo run -p mapkyd -- watcher
-
-# Show help
-cargo run -p mapkyd -- --help
+# Or with cargo directly:
+cargo run -p mapkyd                                      # run both API + watcher
+cargo run -p mapkyd -- api                               # API only
+cargo run -p mapkyd -- watcher                           # watcher only
+cargo run -p mapkyd -- reset-db                          # wipe DBs + recreate schema
+cargo run -p mapkyd -- reset-db --neo4j-only             # wipe Neo4j only
+cargo run -p mapkyd -- reset-db --pg-only                # wipe PostgreSQL only
+cargo run -p mapkyd -- --help                            # show help
 ```
 
 ## Development
 
 ```sh
-# Check compilation
+# Using just:
+just test         # unit tests (no Docker)
+just test-int     # docker up + seed + integration tests
+just check        # clippy + fmt --check
+just fmt          # cargo fmt
+
+# Or with cargo directly:
 cargo check --workspace
-
-# Run unit tests (22 tests, no Docker required)
-cargo test --workspace
-
-# Run integration tests (15 tests, requires Docker databases)
-cargo test -p mapky-webapi --test integration -- --ignored
-
-# Lint
+cargo test --workspace                                            # 22 unit tests
+cargo test -p mapky-webapi --test integration -- --ignored        # 15 integration tests
 cargo clippy --workspace
 ```
 

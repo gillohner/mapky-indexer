@@ -11,7 +11,9 @@ mapky-watcher = { version = "0.1.0", path = "../mapky-watcher" }
 mapky-webapi = { version = "0.1.0", path = "../mapky-webapi" }
 chrono = { workspace = true }
 clap = { workspace = true }
+neo4rs = { workspace = true }
 serde = { workspace = true }
+sqlx = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 

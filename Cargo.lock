@@ -1855,7 +1855,9 @@ dependencies = [
  "mapky-common",
  "mapky-watcher",
  "mapky-webapi",
+ "neo4rs",
  "serde",
+ "sqlx",
  "tokio",
  "tracing",
 ]

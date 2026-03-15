@@ -4,4 +4,5 @@
 *.swo
 docker/.env
 docker/.database/
-config/config.toml
+config/local/config.toml
+config/testnet/config.toml

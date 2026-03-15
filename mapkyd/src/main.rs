@@ -24,6 +24,13 @@ async fn main() -> Result<(), DynError> {
         MapkyCommands::Run { config_dir } => {
             DaemonLauncher::start(config_dir, None).await?;
         }
+        MapkyCommands::ResetDb {
+            config_dir,
+            neo4j_only,
+            pg_only,
+        } => {
+            mapkyd::reset::reset_databases(config_dir, neo4j_only, pg_only).await?;
+        }
     }
 
     Ok(())

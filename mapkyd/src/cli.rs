@@ -2,7 +2,7 @@ use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
 fn default_config_dir() -> PathBuf {
-    PathBuf::from("./config")
+    PathBuf::from("./config/local")
 }
 
 #[derive(Parser, Debug)]
@@ -47,5 +47,17 @@ pub enum MapkyCommands {
     Run {
         #[arg(short, long, default_value_os_t = default_config_dir())]
         config_dir: PathBuf,
+    },
+
+    /// Wipe database contents and recreate schema
+    ResetDb {
+        #[arg(short, long, default_value_os_t = default_config_dir())]
+        config_dir: PathBuf,
+        /// Only reset Neo4j
+        #[arg(long)]
+        neo4j_only: bool,
+        /// Only reset PostgreSQL
+        #[arg(long)]
+        pg_only: bool,
     },
 }
