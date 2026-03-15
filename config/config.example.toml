@@ -5,9 +5,14 @@
 [api]
 name = "mapkyd.api"
 port = 8090
+# Pubky network mode — must match [watcher] settings.
+# The API needs PubkyConnector for the ingest endpoint (homeserver resolution via DHT).
+testnet = false
+testnet_host = "localhost"
 
 [watcher]
 name = "mapkyd.watcher"
+# Seed/default homeserver. Additional homeservers are discovered via PUT /v0/ingest/{user_id}.
 homeserver = "8pinxxgqs41n4aididenw5apqp1urfmzdztr8jt4abrkdn435ewo"
 events_limit = 1000
 watcher_sleep = 5000

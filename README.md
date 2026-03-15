@@ -96,11 +96,76 @@ cargo run -p mapkyd -- --help
 # Check compilation
 cargo check --workspace
 
-# Run tests
+# Run unit tests (22 tests, no Docker required)
 cargo test --workspace
+
+# Run integration tests (15 tests, requires Docker databases)
+cargo test -p mapky-webapi --test integration -- --ignored
 
 # Lint
 cargo clippy --workspace
+```
+
+### Integration Tests
+
+The integration tests in `mapky-webapi/tests/integration.rs` seed real OSM locations into Neo4j and test the viewport API end-to-end:
+
+| City | Places | OSM Types |
+|---|---|---|
+| Paris | Eiffel Tower, Louvre, Notre-Dame | node, way, relation |
+| London | Big Ben, Buckingham Palace | node, way |
+| New York | Central Park, Statue of Liberty | relation, node |
+| Sydney | Opera House | way |
+
+Tests cover: bounding box filtering, all OSM element types, southern hemisphere coordinates, limit enforcement, parameter validation (400 errors), and data integrity checks.
+
+**Requires** `docker compose up -d` in `docker/` before running.
+
+### Seed Script
+
+Populate both databases with realistic test data (users, places, posts with ratings) without needing a Pubky homeserver:
+
+```sh
+# 1. Start databases
+cd docker && docker compose up -d && cd ..
+
+# 2. Seed data
+cargo run -p mapkyd --example seed
+
+# 3. Start the API
+cargo run -p mapkyd -- api
+
+# 4. Query it
+curl -s 'localhost:8090/v0/viewport?min_lat=48.8&min_lon=2.2&max_lat=48.9&max_lon=2.4' | jq .
+```
+
+The seed script creates 2 users, 8 real-world OSM places (across Paris, London, NYC, Sydney), and 7 posts with ratings. It writes to both Neo4j and PostgreSQL, including aggregate updates (review_count, avg_rating).
+
+After seeding, you can also explore the graph visually at http://localhost:7474 with:
+```cypher
+MATCH (u:User)-[:AUTHORED]->(p:Post)-[:ABOUT]->(place:Place) RETURN *
+```
+
+### Full End-to-End Testing (with Pubky Homeserver)
+
+To test the complete pipeline including the watcher event polling:
+
+```sh
+# 1. Start local databases
+cd docker && docker compose up -d && cd ..
+
+# 2. Start pubky-docker testnet homeserver (see https://github.com/pubky/pubky-docker)
+# This provides the homeserver at the ID configured in config.toml
+
+# 3. Run the full daemon (API + watcher)
+cargo run -p mapkyd
+
+# 4. Write data to the homeserver using the Pubky SDK
+#    The watcher polls every 5s and indexes new events into Neo4j + PostgreSQL
+
+# 5. Query the API to verify indexed data
+curl -s 'localhost:8090/v0/health' | jq .
+curl -s 'localhost:8090/v0/viewport?min_lat=-90&min_lon=-180&max_lat=90&max_lon=180&limit=100' | jq .
 ```
 
 ## License

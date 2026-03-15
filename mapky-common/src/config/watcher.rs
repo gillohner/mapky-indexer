@@ -20,6 +20,8 @@ fn default_testnet_host() -> String {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WatcherConfig {
     pub name: String,
+    /// Seed/default homeserver. Additional homeservers are discovered via the ingest endpoint
+    /// and persisted in Neo4j; the watcher polls all known homeservers each tick.
     pub homeserver: String,
     pub events_limit: u32,
     pub watcher_sleep: u64,

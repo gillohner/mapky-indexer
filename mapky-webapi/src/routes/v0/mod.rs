@@ -1,4 +1,5 @@
 mod health;
+mod ingest;
 mod viewport;
 
 use axum::Router;
@@ -10,6 +11,7 @@ use mapky_common::models::place::PlaceDetails;
 #[openapi(
     paths(
         health::health,
+        ingest::ingest,
         viewport::viewport,
     ),
     components(schemas(
@@ -22,5 +24,6 @@ pub struct ApiDoc;
 pub fn routes() -> Router {
     Router::new()
         .merge(health::routes())
+        .merge(ingest::routes())
         .merge(viewport::routes())
 }

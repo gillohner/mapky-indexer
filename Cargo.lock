@@ -1832,11 +1832,14 @@ version = "0.1.0"
 dependencies = [
  "axum",
  "chrono",
+ "http-body-util",
  "mapky-common",
+ "neo4rs",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
  "tokio",
+ "tower",
  "tower-http",
  "tracing",
  "utoipa",
@@ -1847,6 +1850,7 @@ dependencies = [
 name = "mapkyd"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "clap",
  "mapky-common",
  "mapky-watcher",

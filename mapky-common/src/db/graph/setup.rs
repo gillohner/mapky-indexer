@@ -9,6 +9,7 @@ pub async fn setup_graph() -> Result<(), DynError> {
         "CREATE CONSTRAINT uniqueUserId IF NOT EXISTS FOR (u:User) REQUIRE u.id IS UNIQUE",
         "CREATE CONSTRAINT uniquePlaceId IF NOT EXISTS FOR (p:Place) REQUIRE p.osm_canonical IS UNIQUE",
         "CREATE CONSTRAINT uniquePostId IF NOT EXISTS FOR (p:Post) REQUIRE p.id IS UNIQUE",
+        "CREATE CONSTRAINT uniqueHomeserverId IF NOT EXISTS FOR (hs:Homeserver) REQUIRE hs.id IS UNIQUE",
     ];
 
     let indexes = [
@@ -18,6 +19,7 @@ pub async fn setup_graph() -> Result<(), DynError> {
         "CREATE INDEX postTimestampIndex IF NOT EXISTS FOR (p:Post) ON (p.indexed_at)",
         // Core spatial index for viewport queries
         "CREATE POINT INDEX placeLocationIndex IF NOT EXISTS FOR (p:Place) ON (p.location)",
+        "CREATE INDEX homeserverIdIndex IF NOT EXISTS FOR (hs:Homeserver) ON (hs.id)",
     ];
 
     let all_queries = constraints.iter().chain(indexes.iter());

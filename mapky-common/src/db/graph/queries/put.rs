@@ -1,3 +1,4 @@
+use crate::models::homeserver::HomeserverDetails;
 use crate::models::place::PlaceDetails;
 use crate::models::post::PostDetails;
 use crate::models::user::UserDetails;
@@ -68,6 +69,16 @@ pub fn create_post(post: &PostDetails) -> Query {
     .param("indexed_at", post.indexed_at)
 }
 
+/// MERGE a Homeserver node by its public key.
+pub fn create_homeserver(hs: &HomeserverDetails) -> Query {
+    query(
+        "MERGE (hs:Homeserver {id: $id})
+         SET hs.indexed_at = $indexed_at",
+    )
+    .param("id", hs.id.clone())
+    .param("indexed_at", hs.indexed_at)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -99,6 +110,16 @@ mod tests {
             indexed_at: 1000,
         };
         let q = create_place(&place);
+        drop(q);
+    }
+
+    #[test]
+    fn test_create_homeserver_query_builds() {
+        let hs = HomeserverDetails {
+            id: "test_hs_pk".to_string(),
+            indexed_at: 1000,
+        };
+        let q = create_homeserver(&hs);
         drop(q);
     }
 

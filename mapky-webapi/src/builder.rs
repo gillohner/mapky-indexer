@@ -1,6 +1,7 @@
 use std::net::SocketAddr;
 use std::path::PathBuf;
 
+use mapky_common::db::PubkyConnector;
 use mapky_common::types::DynError;
 use mapky_common::utils::create_shutdown_rx;
 use mapky_common::{ApiConfig, DaemonConfig, StackManager};
@@ -14,7 +15,17 @@ pub struct MapkyApiBuilder(pub ApiConfig);
 
 impl MapkyApiBuilder {
     pub async fn init_stack(&self) -> Result<(), DynError> {
-        StackManager::setup(&self.0.name, &self.0.stack).await
+        StackManager::setup(&self.0.name, &self.0.stack).await?;
+
+        // Initialise PubkyConnector so the ingest endpoint can resolve homeservers.
+        let testnet_host = if self.0.testnet {
+            Some(self.0.testnet_host.as_str())
+        } else {
+            None
+        };
+        let _ = PubkyConnector::initialise(testnet_host).await;
+
+        Ok(())
     }
 
     pub async fn start(self, shutdown_rx: Option<Receiver<bool>>) -> Result<MapkyApi, DynError> {

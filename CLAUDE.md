@@ -27,7 +27,7 @@ All crates depend on `mapky-app-specs` (workspace dependency) for the type defin
 ## Commands
 ```sh
 cargo check --workspace          # Compile check all crates
-cargo test --workspace           # Run all tests (17 unit tests)
+cargo test --workspace           # Run unit tests (22 across workspace)
 cargo clippy --workspace         # Lint
 cargo run -p mapkyd              # Run both API + watcher (default)
 cargo run -p mapkyd -- api       # Run API only
@@ -36,6 +36,13 @@ cargo run -p mapkyd -- --help    # Show CLI help
 ```
 
 Config file: `config/config.toml` (auto-created from defaults if missing).
+
+### Integration Tests (require Docker)
+```sh
+cd docker && docker compose up -d                        # start Neo4j + PostgreSQL
+cargo test -p mapky-webapi --test integration -- --ignored  # run 15 integration tests
+```
+Integration tests seed real OSM locations (Eiffel Tower, Big Ben, Central Park, Sydney Opera House, etc.) into Neo4j and test the viewport API with bounding box queries across 4 cities, all 3 OSM element types, both hemispheres.
 
 ## Code Patterns
 
@@ -208,11 +215,26 @@ RETURN p LIMIT $limit
 - All Cypher queries MUST use `.param()` — never string interpolation
 - Config defaults live in `config/config.toml` — keep in sync with config struct defaults
 
+### 10. PostgreSQL Query Layer
+```rust
+// mapky-common/src/db/pg/queries/
+pub mod cursor;  // get_cursor, upsert_cursor (watcher_cursors table)
+pub mod place;   // upsert_place, increment_review, decrement_review
+pub mod post;    // upsert_post, delete_post (with RETURNING for aggregate rollback)
+```
+All use sqlx with parameterized queries. Aggregate updates use running-average SQL.
+
+### 11. Event Polling
+The watcher polls `https://{homeserver}/events/?cursor={cursor}&limit={limit}` and parses response lines:
+- `PUT pubky://user_pk/pub/mapky.app/posts/ID` → fetch blob → parse → dispatch to handler
+- `DEL pubky://user_pk/pub/mapky.app/posts/ID` → dispatch delete handler
+- `cursor: <value>` → persist to watcher_cursors table
+
+Event line parsing in `mapky-watcher/src/events/mod.rs` extracts user_id, resource_type, resource_id from the URI. Non-mapky.app events are silently skipped.
+
 ## What's NOT Implemented Yet (TODO)
 - LocationTag, Collection, Incident, GeoCapture, Route handlers (only Post exists as reference)
 - Most API endpoints (only health + viewport)
-- Actual homeserver event polling (watcher loop is stubbed)
-- PostgreSQL writes in handlers (graph writes work, pg writes are TODO)
 - File proxy / thumbnail generation
 - OSM API coordinate lookup (PlaceDetails.from_osm_ref stubs lat/lon to 0.0)
 - Retry queue for MissingDependency outcomes

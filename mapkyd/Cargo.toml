@@ -9,7 +9,12 @@ license = "MIT"
 mapky-common = { version = "0.1.0", path = "../mapky-common" }
 mapky-watcher = { version = "0.1.0", path = "../mapky-watcher" }
 mapky-webapi = { version = "0.1.0", path = "../mapky-webapi" }
+chrono = { workspace = true }
 clap = { workspace = true }
 serde = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
+
+[[example]]
+name = "seed"
+path = "examples/seed.rs"

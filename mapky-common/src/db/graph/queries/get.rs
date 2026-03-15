@@ -54,6 +54,16 @@ pub fn get_post_by_id(author_id: &str, post_id: &str) -> Query {
     .param("post_id", post_id)
 }
 
+/// Retrieve a homeserver by its public key.
+pub fn get_homeserver_by_id(id: &str) -> Query {
+    query("MATCH (hs:Homeserver {id: $id}) RETURN hs.id AS id").param("id", id)
+}
+
+/// Retrieve all known homeserver IDs as a collected list.
+pub fn get_all_homeservers() -> Query {
+    query("MATCH (hs:Homeserver) WITH collect(hs.id) AS ids RETURN ids")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -61,6 +71,18 @@ mod tests {
     #[test]
     fn test_viewport_query_builds() {
         let q = get_places_in_viewport(40.0, -74.0, 41.0, -73.0, 200);
+        drop(q);
+    }
+
+    #[test]
+    fn test_get_homeserver_by_id_query_builds() {
+        let q = get_homeserver_by_id("test_hs_pk");
+        drop(q);
+    }
+
+    #[test]
+    fn test_get_all_homeservers_query_builds() {
+        let q = get_all_homeservers();
         drop(q);
     }
 
