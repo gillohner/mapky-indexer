@@ -1,0 +1,27 @@
+[package]
+name = "mapky-common"
+version = "0.1.0"
+edition = "2021"
+description = "Mapky indexer shared library — config, DB connectors, models, graph queries"
+license = "MIT"
+
+[dependencies]
+chrono = { workspace = true }
+neo4rs = { workspace = true }
+once_cell = "1.21"
+serde = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+toml = "0.8"
+tracing = { workspace = true }
+tracing-log = "0.2"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+utoipa = "5.4"
+
+mapky-app-specs = { workspace = true }
+pubky = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3.24"

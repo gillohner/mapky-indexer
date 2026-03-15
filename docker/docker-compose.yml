@@ -1,0 +1,41 @@
+services:
+  mapky-neo4j:
+    container_name: mapky-neo4j
+    image: neo4j:5-community
+    ports:
+      - "127.0.0.1:7474:7474"
+      - "127.0.0.1:7687:7687"
+    volumes:
+      - .database/neo4j/data:/data
+      - .database/neo4j/logs:/logs
+    environment:
+      NEO4J_AUTH: ${NEO4J_DB_USERNAME:-neo4j}/${NEO4J_PASSWORD:-12345678}
+      NEO4J_server_memory_pagecache_size: 512M
+      NEO4J_server_memory_heap_initial__size: 512M
+      NEO4J_server_memory_heap_max__size: 1G
+      NEO4J_server_databases_default__to__read__only: "false"
+      NEO4J_dbms_usage__report_enabled: "false"
+    healthcheck:
+      test: ["CMD", "cypher-shell", "-u", "${NEO4J_DB_USERNAME:-neo4j}", "-p", "${NEO4J_PASSWORD:-12345678}", "RETURN 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  mapky-postgres:
+    container_name: mapky-postgres
+    image: postgres:17-alpine
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - .database/postgres/data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-mapky}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mapky}
+      POSTGRES_DB: ${POSTGRES_DB:-mapky}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mapky} -d ${POSTGRES_DB:-mapky}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped

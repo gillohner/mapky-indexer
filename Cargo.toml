@@ -1,0 +1,22 @@
+[workspace]
+resolver = "2"
+members = [
+    "mapky-common",
+    "mapky-watcher",
+    "mapky-webapi",
+    "mapkyd",
+]
+
+[workspace.dependencies]
+chrono = { version = "0.4", default-features = false, features = ["clock", "serde"] }
+clap = { version = "4.5", features = ["derive"] }
+neo4rs = "0.8"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "chrono", "migrate"] }
+thiserror = "2.0"
+tokio = { version = "1.49", features = ["full"] }
+tracing = "0.1"
+
+mapky-app-specs = { path = "../mapky-app-specs" }
+pubky = { git = "https://github.com/pubky/pubky-core.git", package = "pubky", rev = "c6dd23a7377d5a6ade79b5216d04ea7b85e1b612" }

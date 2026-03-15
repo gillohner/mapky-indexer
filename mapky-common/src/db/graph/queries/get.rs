@@ -1,0 +1,72 @@
+use neo4rs::{query, Query};
+
+/// Retrieve places within a bounding box using Neo4j spatial `point.withinBBox()`.
+pub fn get_places_in_viewport(
+    min_lat: f64,
+    min_lon: f64,
+    max_lat: f64,
+    max_lon: f64,
+    limit: u32,
+) -> Query {
+    query(
+        "MATCH (p:Place)
+         WHERE point.withinBBox(
+             p.location,
+             point({latitude: $min_lat, longitude: $min_lon}),
+             point({latitude: $max_lat, longitude: $max_lon})
+         )
+         RETURN {
+             osm_canonical: p.osm_canonical,
+             osm_type: p.osm_type,
+             osm_id: p.osm_id,
+             lat: p.lat,
+             lon: p.lon,
+             review_count: p.review_count,
+             avg_rating: p.avg_rating,
+             tag_count: p.tag_count,
+             photo_count: p.photo_count,
+             indexed_at: p.indexed_at
+         } AS place
+         LIMIT $limit",
+    )
+    .param("min_lat", min_lat)
+    .param("min_lon", min_lon)
+    .param("max_lat", max_lat)
+    .param("max_lon", max_lon)
+    .param("limit", limit as i64)
+}
+
+/// Retrieve a post by author ID and post ID.
+pub fn get_post_by_id(author_id: &str, post_id: &str) -> Query {
+    query(
+        "MATCH (u:User {id: $author_id})-[:AUTHORED]->(p:Post {id: $post_id})
+         OPTIONAL MATCH (p)-[:ABOUT]->(place:Place)
+         RETURN {
+             id: p.id,
+             author_id: u.id,
+             osm_canonical: place.osm_canonical,
+             content: p.content,
+             rating: p.rating,
+             indexed_at: p.indexed_at
+         } AS details",
+    )
+    .param("author_id", author_id)
+    .param("post_id", post_id)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_viewport_query_builds() {
+        let q = get_places_in_viewport(40.0, -74.0, 41.0, -73.0, 200);
+        drop(q);
+    }
+
+    #[test]
+    fn test_get_post_query_builds() {
+        let q = get_post_by_id("user123", "post456");
+        drop(q);
+    }
+}

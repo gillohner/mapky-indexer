@@ -1,0 +1,19 @@
+[package]
+name = "mapky-webapi"
+version = "0.1.0"
+edition = "2021"
+description = "Mapky REST API — spatial queries, place data, reviews"
+license = "MIT"
+
+[dependencies]
+mapky-common = { version = "0.1.0", path = "../mapky-common" }
+axum = "0.8"
+chrono = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tower-http = { version = "0.6", features = ["cors", "compression-full"] }
+tracing = { workspace = true }
+utoipa = "5.4"
+utoipa-swagger-ui = { version = "9.0", features = ["axum"] }
