@@ -21,6 +21,7 @@ impl Default for Pagination {
 
 /// Bounding box query for spatial viewport queries.
 #[derive(Debug, Clone, Deserialize, IntoParams)]
+#[into_params(parameter_in = Query)]
 pub struct ViewportQuery {
     pub min_lat: f64,
     pub min_lon: f64,
