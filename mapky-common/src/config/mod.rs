@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
 pub const LOG_LEVEL: Level = Level::Info;
+pub const NOMINATIM_URL: &str = "https://nominatim.openstreetmap.org";
 
 mod api;
 mod daemon;
@@ -38,9 +39,29 @@ impl Level {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GeocodingConfig {
+    #[serde(default = "default_nominatim_url")]
+    pub nominatim_url: String,
+}
+
+fn default_nominatim_url() -> String {
+    NOMINATIM_URL.to_string()
+}
+
+impl Default for GeocodingConfig {
+    fn default() -> Self {
+        Self {
+            nominatim_url: default_nominatim_url(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StackConfig {
     pub log_level: Level,
     pub db: DatabaseConfig,
+    #[serde(default)]
+    pub geocoding: GeocodingConfig,
 }
 
 impl Default for StackConfig {
@@ -48,6 +69,7 @@ impl Default for StackConfig {
         Self {
             log_level: LOG_LEVEL,
             db: DatabaseConfig::default(),
+            geocoding: GeocodingConfig::default(),
         }
     }
 }

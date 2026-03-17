@@ -30,3 +30,8 @@ password = "12345678"
 [stack.db.postgres]
 url = "postgres://mapky:mapky@localhost:5432/mapky"
 max_connections = 10
+
+# Geocoding: resolves OSM element coordinates when the watcher encounters new places.
+# Default: public Nominatim (rate-limited to 1 req/s). Use a self-hosted instance in production.
+[stack.geocoding]
+nominatim_url = "https://nominatim.openstreetmap.org"

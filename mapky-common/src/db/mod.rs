@@ -1,4 +1,4 @@
-mod connectors;
+pub mod connectors;
 mod errors;
 pub mod graph;
 pub mod pg;

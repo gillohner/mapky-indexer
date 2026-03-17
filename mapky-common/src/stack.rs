@@ -1,4 +1,5 @@
 use crate::config::{Level, StackConfig};
+use crate::db::connectors::nominatim::NominatimClient;
 use crate::db::{Neo4jConnector, PgConnector};
 use crate::types::DynError;
 use tracing::info;
@@ -12,6 +13,8 @@ impl StackManager {
 
         Neo4jConnector::init(&config.db.neo4j).await?;
         PgConnector::init(&config.db.postgres).await?;
+        NominatimClient::init(&config.geocoding.nominatim_url);
+        info!("Nominatim client initialized: {}", config.geocoding.nominatim_url);
 
         Ok(())
     }

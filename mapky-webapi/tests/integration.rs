@@ -12,6 +12,7 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
 use mapky_common::models::place::PlaceDetails;
+use mapky_common::models::post::PostDetails;
 use tower::ServiceExt;
 
 /// Helper: GET request against the test router, return (status, body bytes).
@@ -268,4 +269,111 @@ async fn test_viewport_place_fields_are_complete() {
     assert_eq!(opera_house.tag_count, 0);
     assert_eq!(opera_house.photo_count, 0);
     assert!(opera_house.indexed_at > 0);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Place detail
+// ═══════════════════════════════════════════════════════════════════
+
+/// Helper: GET and parse JSON body as a single PlaceDetails.
+async fn get_place(uri: &str) -> PlaceDetails {
+    let (status, body) = get(uri).await;
+    assert_eq!(status, StatusCode::OK, "body: {}", String::from_utf8_lossy(&body));
+    serde_json::from_slice(&body).expect("Failed to parse place JSON")
+}
+
+/// Helper: GET and parse JSON body as Vec<PostDetails>.
+async fn get_posts(uri: &str) -> Vec<PostDetails> {
+    let (status, body) = get(uri).await;
+    assert_eq!(status, StatusCode::OK, "body: {}", String::from_utf8_lossy(&body));
+    serde_json::from_slice(&body).expect("Failed to parse posts JSON")
+}
+
+#[tokio::test]
+#[ignore]
+async fn test_place_detail_eiffel_tower() {
+    let place = get_place("/v0/place/node/5765069879").await;
+    assert_eq!(place.osm_canonical, "node/5765069879");
+    assert_eq!(place.osm_type, "node");
+    assert_eq!(place.osm_id, 5765069879);
+    assert!((place.lat - 48.8584).abs() < 0.001);
+    assert!((place.lon - 2.2945).abs() < 0.001);
+    // Seeded with 2 reviews (ratings 9 and 4)
+    assert_eq!(place.review_count, 2);
+    assert!((place.avg_rating - 6.5).abs() < 0.1);
+}
+
+#[tokio::test]
+#[ignore]
+async fn test_place_detail_not_found() {
+    let (status, _) = get("/v0/place/node/999999999").await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+#[ignore]
+async fn test_place_detail_invalid_osm_type() {
+    let (status, _) = get("/v0/place/invalid/123").await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+#[ignore]
+async fn test_place_detail_all_osm_types() {
+    // node
+    let place = get_place("/v0/place/node/5765069879").await;
+    assert_eq!(place.osm_type, "node");
+    // way
+    let place = get_place("/v0/place/way/53142000").await;
+    assert_eq!(place.osm_type, "way");
+    // relation
+    let place = get_place("/v0/place/relation/4022824").await;
+    assert_eq!(place.osm_type, "relation");
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Place posts
+// ═══════════════════════════════════════════════════════════════════
+
+#[tokio::test]
+#[ignore]
+async fn test_place_posts_returns_all() {
+    // Eiffel Tower has 3 seeded posts (2 reviews + 1 comment)
+    let posts = get_posts("/v0/place/node/5765069879/posts").await;
+    assert_eq!(posts.len(), 3);
+
+    // All posts should reference the Eiffel Tower
+    for post in &posts {
+        assert_eq!(post.osm_canonical, "node/5765069879");
+    }
+}
+
+#[tokio::test]
+#[ignore]
+async fn test_place_posts_reviews_only() {
+    // Only posts with rating
+    let posts = get_posts("/v0/place/node/5765069879/posts?kind=reviews").await;
+    assert_eq!(posts.len(), 2);
+
+    for post in &posts {
+        assert!(post.rating.is_some(), "Expected all returned posts to have a rating");
+    }
+}
+
+#[tokio::test]
+#[ignore]
+async fn test_place_posts_pagination() {
+    let posts = get_posts("/v0/place/node/5765069879/posts?limit=2").await;
+    assert_eq!(posts.len(), 2);
+
+    let posts = get_posts("/v0/place/node/5765069879/posts?skip=2&limit=10").await;
+    assert_eq!(posts.len(), 1);
+}
+
+#[tokio::test]
+#[ignore]
+async fn test_place_posts_empty_place() {
+    // Sydney Opera House has no seeded posts
+    let posts = get_posts("/v0/place/way/28577776/posts").await;
+    assert!(posts.is_empty());
 }

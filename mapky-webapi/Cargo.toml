@@ -22,4 +22,5 @@ utoipa-swagger-ui = { version = "9.0", features = ["axum"] }
 [dev-dependencies]
 http-body-util = "0.1"
 neo4rs = { workspace = true }
+sqlx = { workspace = true }
 tower = { version = "0.5", features = ["util"] }

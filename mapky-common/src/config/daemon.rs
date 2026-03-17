@@ -63,5 +63,9 @@ mod tests {
             config.stack.db.postgres.url,
             "postgres://mapky:mapky@localhost:5432/mapky"
         );
+        assert_eq!(
+            config.stack.geocoding.nominatim_url,
+            "https://nominatim.openstreetmap.org"
+        );
     }
 }

@@ -62,7 +62,7 @@ cargo run -p mapkyd -- --config-dir config/testnet
 ## Commands
 ```sh
 cargo check --workspace          # Compile check all crates
-cargo test --workspace           # Run unit tests (22 across workspace)
+cargo test --workspace           # Run unit tests (43 across workspace)
 cargo clippy --workspace         # Lint
 cargo run -p mapkyd              # Run both API + watcher (default)
 cargo run -p mapkyd -- api       # Run API only
@@ -76,9 +76,9 @@ Config file: `config/local/config.toml` (auto-created from defaults if missing).
 ### Integration Tests (require Docker)
 ```sh
 cd docker && docker compose up -d                        # start Neo4j + PostgreSQL
-cargo test -p mapky-webapi --test integration -- --ignored  # run 15 integration tests
+cargo test -p mapky-webapi --test integration -- --ignored  # run 23 integration tests
 ```
-Integration tests seed real OSM locations (Eiffel Tower, Big Ben, Central Park, Sydney Opera House, etc.) into Neo4j and test the viewport API with bounding box queries across 4 cities, all 3 OSM element types, both hemispheres.
+Integration tests seed real OSM locations (Eiffel Tower, Big Ben, Central Park, Sydney Opera House, etc.) into both Neo4j and PostgreSQL, plus test users and posts. Tests cover viewport queries across 4 cities, place detail lookups, post listing with pagination and review filtering, all 3 OSM element types, and both hemispheres.
 
 ## Code Patterns
 
@@ -95,6 +95,13 @@ pub fn get_pg_pool() -> Result<&'static PgPool, &'static str>
 ```
 Initialized in `StackManager::setup()` which is called by builders before starting services.
 
+Nominatim geocoding client follows the same singleton pattern:
+```rust
+// mapky-common/src/db/connectors/nominatim.rs
+pub fn resolve_osm_coords(osm_type, osm_id) -> Result<Option<(f64, f64)>>
+```
+Rate-limited to 1 req/s for public Nominatim. Configured via `[stack.geocoding]` in config TOML. Used by `PlaceDetails::from_osm_ref()` (async) when the watcher indexes a new place.
+
 ### 2. Graph Query Builders
 All Neo4j queries are parameterized functions returning `neo4rs::Query`:
 ```rust
@@ -105,6 +112,9 @@ pub fn create_user(user: &UserDetails) -> Query { ... }
 
 // queries/get.rs
 pub fn get_places_in_viewport(min_lat, min_lon, max_lat, max_lon, limit) -> Query
+pub fn get_place_by_canonical(osm_canonical) -> Query
+pub fn get_posts_for_place(osm_canonical, skip, limit) -> Query
+pub fn get_reviews_for_place(osm_canonical, skip, limit) -> Query
 pub fn get_post_by_id(author_id, post_id) -> Query
 
 // queries/del.rs
@@ -240,6 +250,9 @@ RETURN p LIMIT $limit
 |---|---|---|
 | GET | `/v0/health` | Version + status |
 | GET | `/v0/viewport?min_lat=&min_lon=&max_lat=&max_lon=&zoom=&limit=` | Places in bounding box |
+| PUT | `/v0/ingest/{user_id}` | Register user + resolve homeserver via DHT |
+| GET | `/v0/place/{osm_type}/{osm_id}` | Place detail (PG primary, Neo4j fallback) |
+| GET | `/v0/place/{osm_type}/{osm_id}/posts?skip=&limit=&kind=` | Posts for a place (kind=reviews for rated only) |
 | GET | `/swagger-ui` | Interactive API docs |
 
 ## IMPORTANT Rules
@@ -257,8 +270,8 @@ RETURN p LIMIT $limit
 ```rust
 // mapky-common/src/db/pg/queries/
 pub mod cursor;  // get_cursor, upsert_cursor (watcher_cursors table)
-pub mod place;   // upsert_place, increment_review, decrement_review
-pub mod post;    // upsert_post, delete_post (with RETURNING for aggregate rollback)
+pub mod place;   // upsert_place, get_place_by_canonical, increment_review, decrement_review
+pub mod post;    // upsert_post, delete_post, get_posts_for_place (with reviews_only filter)
 ```
 All use sqlx with parameterized queries. Aggregate updates use running-average SQL.
 
@@ -283,9 +296,8 @@ Event line parsing in `mapky-watcher/src/events/mod.rs` handles both plain text 
 
 ## What's NOT Implemented Yet (TODO)
 - LocationTag, Collection, Incident, GeoCapture, Route handlers (only Post exists as reference)
-- Most API endpoints (only health + viewport)
-- File proxy / thumbnail generation
-- OSM API coordinate lookup (PlaceDetails.from_osm_ref stubs lat/lon to 0.0)
+- File proxy (`GET /v0/files/{pubky_id}/{file_id}`) / thumbnail generation
+- Backfill coordinates for places already indexed at (0,0) — `from_osm_ref` now resolves via Nominatim for new places
 - Retry queue for MissingDependency outcomes
 - Search (FTS, geocoding)
 - Docker production deployment (local dev Docker setup exists in `docker/`)

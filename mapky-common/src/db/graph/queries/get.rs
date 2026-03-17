@@ -54,6 +54,67 @@ pub fn get_post_by_id(author_id: &str, post_id: &str) -> Query {
     .param("post_id", post_id)
 }
 
+/// Retrieve a single place by its canonical OSM reference (e.g. "node/5765069879").
+pub fn get_place_by_canonical(osm_canonical: &str) -> Query {
+    query(
+        "MATCH (p:Place {osm_canonical: $osm_canonical})
+         RETURN {
+             osm_canonical: p.osm_canonical,
+             osm_type: p.osm_type,
+             osm_id: p.osm_id,
+             lat: p.lat,
+             lon: p.lon,
+             review_count: p.review_count,
+             avg_rating: p.avg_rating,
+             tag_count: p.tag_count,
+             photo_count: p.photo_count,
+             indexed_at: p.indexed_at
+         } AS place",
+    )
+    .param("osm_canonical", osm_canonical)
+}
+
+/// Retrieve posts about a place, newest first.
+pub fn get_posts_for_place(osm_canonical: &str, skip: i64, limit: i64) -> Query {
+    query(
+        "MATCH (u:User)-[:AUTHORED]->(p:Post)-[:ABOUT]->(place:Place {osm_canonical: $osm_canonical})
+         RETURN {
+             id: p.id,
+             author_id: u.id,
+             osm_canonical: place.osm_canonical,
+             content: p.content,
+             rating: p.rating,
+             indexed_at: p.indexed_at
+         } AS post
+         ORDER BY p.indexed_at DESC
+         SKIP $skip LIMIT $limit",
+    )
+    .param("osm_canonical", osm_canonical)
+    .param("skip", skip)
+    .param("limit", limit)
+}
+
+/// Retrieve reviews (posts with a rating) for a place, newest first.
+pub fn get_reviews_for_place(osm_canonical: &str, skip: i64, limit: i64) -> Query {
+    query(
+        "MATCH (u:User)-[:AUTHORED]->(p:Post)-[:ABOUT]->(place:Place {osm_canonical: $osm_canonical})
+         WHERE p.rating IS NOT NULL
+         RETURN {
+             id: p.id,
+             author_id: u.id,
+             osm_canonical: place.osm_canonical,
+             content: p.content,
+             rating: p.rating,
+             indexed_at: p.indexed_at
+         } AS post
+         ORDER BY p.indexed_at DESC
+         SKIP $skip LIMIT $limit",
+    )
+    .param("osm_canonical", osm_canonical)
+    .param("skip", skip)
+    .param("limit", limit)
+}
+
 /// Retrieve a homeserver by its public key.
 pub fn get_homeserver_by_id(id: &str) -> Query {
     query("MATCH (hs:Homeserver {id: $id}) RETURN hs.id AS id").param("id", id)
@@ -104,6 +165,24 @@ mod tests {
     #[test]
     fn test_get_users_for_homeserver_query_builds() {
         let q = get_users_for_homeserver("test_hs_pk");
+        drop(q);
+    }
+
+    #[test]
+    fn test_get_place_by_canonical_query_builds() {
+        let q = get_place_by_canonical("node/5765069879");
+        drop(q);
+    }
+
+    #[test]
+    fn test_get_posts_for_place_query_builds() {
+        let q = get_posts_for_place("node/5765069879", 0, 20);
+        drop(q);
+    }
+
+    #[test]
+    fn test_get_reviews_for_place_query_builds() {
+        let q = get_reviews_for_place("node/5765069879", 0, 20);
         drop(q);
     }
 }

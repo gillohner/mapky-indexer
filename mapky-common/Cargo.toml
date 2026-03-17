@@ -19,6 +19,7 @@ tracing = { workspace = true }
 tracing-log = "0.2"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 utoipa = "5.4"
+reqwest = { version = "0.12", features = ["json"] }
 
 mapky-app-specs = { workspace = true }
 pubky = { workspace = true }

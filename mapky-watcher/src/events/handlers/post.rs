@@ -25,8 +25,8 @@ pub async fn sync_put(
     let user_query = queries::put::create_user(&user);
     execute_graph_operation(user_query).await?;
 
-    // Step 2: Ensure the place exists in the graph
-    let place = PlaceDetails::from_osm_ref(&post.place);
+    // Step 2: Ensure the place exists in the graph (resolves coordinates via Nominatim)
+    let place = PlaceDetails::from_osm_ref(&post.place).await;
     let place_query = queries::put::create_place(&place);
     execute_graph_operation(place_query).await?;
 

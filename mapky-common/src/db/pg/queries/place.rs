@@ -1,6 +1,53 @@
 use crate::models::place::PlaceDetails;
 use crate::types::DynError;
-use sqlx::PgPool;
+use sqlx::{FromRow, PgPool};
+
+/// Row shape for place queries.
+#[derive(Debug, FromRow)]
+struct PlaceRow {
+    pub osm_canonical: String,
+    pub osm_type: String,
+    pub osm_id: i64,
+    pub lat: f64,
+    pub lon: f64,
+    pub review_count: i32,
+    pub avg_rating: f64,
+    pub tag_count: i32,
+    pub photo_count: i32,
+}
+
+impl From<PlaceRow> for PlaceDetails {
+    fn from(row: PlaceRow) -> Self {
+        Self {
+            osm_canonical: row.osm_canonical,
+            osm_type: row.osm_type,
+            osm_id: row.osm_id,
+            lat: row.lat,
+            lon: row.lon,
+            review_count: row.review_count as i64,
+            avg_rating: row.avg_rating,
+            tag_count: row.tag_count as i64,
+            photo_count: row.photo_count as i64,
+            indexed_at: 0, // PG doesn't store indexed_at — caller can overlay from graph if needed
+        }
+    }
+}
+
+/// Retrieve a place by its canonical OSM reference.
+pub async fn get_place_by_canonical(
+    pool: &PgPool,
+    osm_canonical: &str,
+) -> Result<Option<PlaceDetails>, DynError> {
+    let row = sqlx::query_as::<_, PlaceRow>(
+        "SELECT osm_canonical, osm_type, osm_id, lat, lon,
+                review_count, avg_rating, tag_count, photo_count
+         FROM places WHERE osm_canonical = $1",
+    )
+    .bind(osm_canonical)
+    .fetch_optional(pool)
+    .await?;
+    Ok(row.map(PlaceDetails::from))
+}
 
 /// Upsert a place row. On conflict, update coordinates (preserves aggregates).
 pub async fn upsert_place(pool: &PgPool, place: &PlaceDetails) -> Result<(), DynError> {

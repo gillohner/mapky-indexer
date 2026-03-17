@@ -68,6 +68,35 @@ impl ViewportQuery {
     }
 }
 
+/// Query parameters for listing posts on a place.
+#[derive(Debug, Clone, Deserialize, IntoParams)]
+#[into_params(parameter_in = Query)]
+pub struct PlacePostsQuery {
+    /// Number of results to skip (default 0).
+    #[serde(default)]
+    pub skip: Option<u32>,
+    /// Maximum results to return (default 20, max 100).
+    #[serde(default)]
+    pub limit: Option<u32>,
+    /// Filter: "reviews" for posts with rating only. Omit for all posts.
+    #[serde(default)]
+    pub kind: Option<String>,
+}
+
+impl PlacePostsQuery {
+    pub fn skip(&self) -> i64 {
+        self.skip.unwrap_or(0) as i64
+    }
+
+    pub fn limit(&self) -> i64 {
+        self.limit.unwrap_or(20).min(100) as i64
+    }
+
+    pub fn reviews_only(&self) -> bool {
+        self.kind.as_deref() == Some("reviews")
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -129,5 +158,29 @@ mod tests {
         let p = Pagination::default();
         assert_eq!(p.skip, 0);
         assert_eq!(p.limit, 20);
+    }
+
+    #[test]
+    fn test_place_posts_query_defaults() {
+        let q = PlacePostsQuery {
+            skip: None,
+            limit: None,
+            kind: None,
+        };
+        assert_eq!(q.skip(), 0);
+        assert_eq!(q.limit(), 20);
+        assert!(!q.reviews_only());
+    }
+
+    #[test]
+    fn test_place_posts_query_reviews_only() {
+        let q = PlacePostsQuery {
+            skip: Some(5),
+            limit: Some(200),
+            kind: Some("reviews".to_string()),
+        };
+        assert_eq!(q.skip(), 5);
+        assert_eq!(q.limit(), 100); // capped at 100
+        assert!(q.reviews_only());
     }
 }

@@ -1,4 +1,5 @@
 mod neo4j;
+pub mod nominatim;
 mod postgres;
 mod pubky;
 
