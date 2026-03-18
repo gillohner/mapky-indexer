@@ -7,30 +7,28 @@
 //!
 //! # Prerequisites
 //!
-//! 1. pubky-docker testnet running (`localhost:6881` DHT, `localhost:15411` relay)
-//!    See: https://github.com/pubky/pubky-docker
-//!
-//! 2. mapky-indexer databases running:
+//! 1. pubky-docker testnet running (homeserver + postgres + pkarr)
 //!    ```sh
-//!    just up
+//!    ./mapky-dev start --testnet
 //!    ```
+//!
+//! 2. Wait for the daemon window to show "Listening on 0.0.0.0:8090"
 //!
 //! # Usage
 //!
 //! ```sh
-//! # Terminal 1: run the daemon in testnet mode
-//! just dev-testnet
-//!
-//! # Terminal 2: write test data
+//! # In a separate terminal:
 //! cargo run -p mapkyd --example write_testnet
 //!
-//! # Terminal 2: verify indexed data (wait a few seconds for watcher poll)
+//! # Wait ~10s for watcher poll + Nominatim lookups, then verify:
 //! curl -s 'localhost:8090/v0/viewport?min_lat=-90&min_lon=-180&max_lat=90&max_lon=180&limit=100' | jq .
+//! curl -s 'localhost:8090/v0/place/node/5765069879' | jq .
+//! curl -s 'localhost:8090/v0/place/node/5765069879/posts' | jq .
 //! ```
 
 use mapky_app_specs::traits::{HasIdPath, TimestampId};
 use mapky_app_specs::{MapkyAppPost, OsmElementType, OsmRef};
-use pubky::{Keypair, PublicKey, Pubky};
+use pubky::{Keypair, PubkyHttpClient, PublicKey};
 
 /// The homeserver public key from config.toml.
 /// This must match the pubky-docker instance you're running.
@@ -77,12 +75,46 @@ fn test_posts() -> Vec<(OsmRef, &'static str, Option<u8>)> {
     ]
 }
 
+/// Create a testnet SDK client and sign up a user.
+/// Tolerates Pkarr DHT publish failures (common with isolated testnet DHT).
+async fn signup_user(
+    homeserver: &PublicKey,
+    user_index: usize,
+) -> Result<(String, pubky::PubkySession), Box<dyn std::error::Error + Send + Sync>> {
+    let client = PubkyHttpClient::testnet()?;
+    let pubky = pubky::Pubky::with_client(client);
+
+    let keypair = Keypair::random();
+    let pk = keypair.public_key().to_z32();
+    let signer = pubky.signer(keypair);
+
+    match signer.signup(homeserver, None).await {
+        Ok(session) => {
+            println!("  User {}: {pk}", user_index + 1);
+            Ok((pk, session))
+        }
+        Err(e) => {
+            let err_str = format!("{e}");
+            // The signup HTTP request succeeds but Pkarr DHT publish fails
+            // on isolated testnet. Try signin instead — the account exists.
+            if err_str.contains("NoClosestNodes") || err_str.contains("Pkarr") {
+                println!(
+                    "  User {}: {pk} (signup ok, DHT publish skipped — isolated testnet)",
+                    user_index + 1
+                );
+                let session = signer.signin().await?;
+                Ok((pk, session))
+            } else {
+                Err(e.into())
+            }
+        }
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     println!("Connecting to pubky-docker testnet...\n");
 
-    // Create testnet SDK (connects to localhost DHT + relay)
-    let pubky = Pubky::testnet()?;
     let homeserver = PublicKey::try_from(HOMESERVER_PK)?;
 
     // Create two test users
@@ -91,13 +123,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     println!("── Creating {user_count} test users ──────────────────────");
     for i in 0..user_count {
-        let keypair = Keypair::random();
-        let pk = keypair.public_key().to_z32();
-        let signer = pubky.signer(keypair);
-
-        let session = signer.signup(&homeserver, None).await?;
-        println!("  User {}: {pk}", i + 1);
-        sessions.push(session);
+        let (pk, session) = signup_user(&homeserver, i).await?;
+        sessions.push((pk, session));
     }
 
     let posts = test_posts();
@@ -108,8 +135,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         posts.len()
     );
     for (i, (place, content, rating)) in posts.iter().enumerate() {
-        let session = &sessions[i % sessions.len()];
-        let user_pk = session.info().public_key().to_z32();
+        let (ref user_pk, ref session) = sessions[i % sessions.len()];
 
         // Create the MapkyAppPost and generate its ID + path
         let post = MapkyAppPost::new(
@@ -131,7 +157,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             .map(|r| format!("★ {r}/10"))
             .unwrap_or_else(|| "comment".to_string());
 
-        println!("  [{status}] {user_pk:.12}… → {path}  ({rating_str})",);
+        println!("  [{status}] {:.12}… → {path}  ({rating_str})", user_pk);
 
         if !status.is_success() {
             let body = response.text().await.unwrap_or_default();
@@ -152,16 +178,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     println!();
     println!("  Verify with:");
     println!("  curl -s 'localhost:8090/v0/viewport?min_lat=-90&min_lon=-180&max_lat=90&max_lon=180&limit=100' | jq .");
+    println!("  curl -s 'localhost:8090/v0/place/node/5765069879' | jq .");
+    println!("  curl -s 'localhost:8090/v0/place/node/5765069879/posts' | jq .");
     println!();
 
     // Print user public keys for debugging
     println!("  User public keys (for events-stream debugging):");
-    for (i, session) in sessions.iter().enumerate() {
-        println!(
-            "    User {}: {}",
-            i + 1,
-            session.info().public_key().to_z32()
-        );
+    for (i, (pk, _)) in sessions.iter().enumerate() {
+        println!("    User {}: {pk}", i + 1);
     }
 
     Ok(())

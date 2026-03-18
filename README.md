@@ -157,21 +157,24 @@ MATCH (u:User)-[:AUTHORED]->(p:Post)-[:ABOUT]->(place:Place) RETURN *
 To test the complete pipeline including the watcher event polling:
 
 ```sh
-# 1. Start local databases
-cd docker && docker compose up -d && cd ..
+# 1. Start the testnet (pubky-docker homeserver + local databases)
+./mapky-dev start --testnet
 
-# 2. Start pubky-docker testnet homeserver (see https://github.com/pubky/pubky-docker)
-# This provides the homeserver at the ID configured in config.toml
+# 2. Run the full daemon in testnet mode (API + watcher)
+just dev-testnet
+# or: cargo run -p mapkyd -- --config-dir config/testnet
 
-# 3. Run the full daemon (API + watcher)
-cargo run -p mapkyd
+# 3. Write test data to the homeserver (in a separate terminal)
+cargo run -p mapkyd --example write_testnet
+```
 
-# 4. Write data to the homeserver using the Pubky SDK
-#    The watcher polls every 5s and indexes new events into Neo4j + PostgreSQL
+This creates 2 ephemeral users, signs them up on the testnet homeserver, and writes 6 posts (reviews + comments) for landmarks in Paris, London, NYC, and Sydney. The watcher picks these up on its next poll cycle (~5s) and indexes them into Neo4j + PostgreSQL.
 
-# 5. Query the API to verify indexed data
-curl -s 'localhost:8090/v0/health' | jq .
+```sh
+# 4. Verify indexed data
 curl -s 'localhost:8090/v0/viewport?min_lat=-90&min_lon=-180&max_lat=90&max_lon=180&limit=100' | jq .
+curl -s 'localhost:8090/v0/place/node/5765069879' | jq .
+curl -s 'localhost:8090/v0/place/node/5765069879/posts' | jq .
 ```
 
 ## License
