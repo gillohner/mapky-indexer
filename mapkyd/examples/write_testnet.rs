@@ -22,12 +22,13 @@
 //!
 //! # Wait ~10s for watcher poll + Nominatim lookups, then verify:
 //! curl -s 'localhost:8090/v0/viewport?min_lat=-90&min_lon=-180&max_lat=90&max_lon=180&limit=100' | jq .
-//! curl -s 'localhost:8090/v0/place/node/5765069879' | jq .
-//! curl -s 'localhost:8090/v0/place/node/5765069879/posts' | jq .
+//! curl -s 'localhost:8090/v0/place/node/1573053883/posts' | jq .   # Hafenbar, Luzern
+//! curl -s 'localhost:8090/v0/place/way/618456759/posts' | jq .     # Bitcoin Ekasi, Mossel Bay
+//! curl -s 'localhost:8090/v0/place/node/3646146894/posts' | jq .   # Insider, Zürich
 //! ```
 
 use mapky_app_specs::traits::{HasIdPath, TimestampId};
-use mapky_app_specs::{MapkyAppPost, OsmElementType, OsmRef};
+use mapky_app_specs::{MapkyAppPost, MapkyAppPostKind, OsmElementType, OsmRef};
 use pubky::{Keypair, PubkyHttpClient, PublicKey};
 
 /// The homeserver public key from config.toml.
@@ -36,40 +37,42 @@ const HOMESERVER_PK: &str = "8pinxxgqs41n4aididenw5apqp1urfmzdztr8jt4abrkdn435ew
 
 fn test_posts() -> Vec<(OsmRef, &'static str, Option<u8>)> {
     vec![
-        // Paris — Eiffel Tower
+        // Luzern — Hafenbar zur Metzgerhalle (node/1573053883)
         (
-            OsmRef::new(OsmElementType::Node, 5765069879),
-            "The Eiffel Tower at sunset is absolutely magical!",
+            OsmRef::new(OsmElementType::Node, 1573053883),
+            "Great Bitcoin bar in Luzern. Lightning payments work perfectly, friendly staff.",
             Some(9),
         ),
-        // Paris — Louvre
         (
-            OsmRef::new(OsmElementType::Way, 53142000),
-            "The Louvre is overwhelming — plan for at least a full day.",
-            Some(8),
-        ),
-        // London — Big Ben
-        (
-            OsmRef::new(OsmElementType::Node, 3532563508),
-            "Big Ben is under renovation but still impressive from the outside.",
+            OsmRef::new(OsmElementType::Node, 1573053883),
+            "Nice vibe and good beer selection. A bit loud on Friday nights but worth it.",
             Some(7),
         ),
-        // New York — Central Park
         (
-            OsmRef::new(OsmElementType::Relation, 2552450),
-            "Central Park in spring is pure joy. Bring a picnic!",
+            OsmRef::new(OsmElementType::Node, 1573053883),
+            "Does the kitchen serve food or just drinks?",
+            None,
+        ),
+        // Mossel Bay — Bitcoin Ekasi Center (way/618456759)
+        (
+            OsmRef::new(OsmElementType::Way, 618456759),
+            "Incredible community work. Teaching Bitcoin to kids in Mossel Bay — genuinely inspiring.",
             Some(10),
         ),
-        // Sydney — Opera House
         (
-            OsmRef::new(OsmElementType::Way, 28577776),
-            "Sydney Opera House — the architecture is even more stunning in person.",
+            OsmRef::new(OsmElementType::Way, 618456759),
+            "Visited during a trip along the Garden Route. The team here is doing amazing work.",
             Some(9),
         ),
-        // Comment without rating (Eiffel Tower)
+        // Zürich — Insider restaurant (node/3646146894)
         (
-            OsmRef::new(OsmElementType::Node, 5765069879),
-            "Does anyone know if there's wheelchair access to the top?",
+            OsmRef::new(OsmElementType::Node, 3646146894),
+            "Solid lunch spot. Great value, fast service, and the daily specials are always good.",
+            Some(8),
+        ),
+        (
+            OsmRef::new(OsmElementType::Node, 3646146894),
+            "Are you open on Saturdays? The OSM hours say closed but the website says otherwise.",
             None,
         ),
     ]
@@ -138,7 +141,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let (ref user_pk, ref session) = sessions[i % sessions.len()];
 
         // Create the MapkyAppPost and generate its ID + path
+        let kind = if rating.is_some() {
+            MapkyAppPostKind::Review
+        } else {
+            MapkyAppPostKind::Post
+        };
         let post = MapkyAppPost::new(
+            kind,
             place.clone(),
             Some(content.to_string()),
             *rating,
@@ -178,8 +187,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     println!();
     println!("  Verify with:");
     println!("  curl -s 'localhost:8090/v0/viewport?min_lat=-90&min_lon=-180&max_lat=90&max_lon=180&limit=100' | jq .");
-    println!("  curl -s 'localhost:8090/v0/place/node/5765069879' | jq .");
-    println!("  curl -s 'localhost:8090/v0/place/node/5765069879/posts' | jq .");
+    println!("  curl -s 'localhost:8090/v0/place/node/1573053883' | jq .          # Hafenbar, Luzern");
+    println!("  curl -s 'localhost:8090/v0/place/node/1573053883/posts' | jq .");
+    println!("  curl -s 'localhost:8090/v0/place/way/618456759' | jq .            # Bitcoin Ekasi, Mossel Bay");
+    println!("  curl -s 'localhost:8090/v0/place/node/3646146894' | jq .          # Insider, Zürich");
     println!();
 
     // Print user public keys for debugging
